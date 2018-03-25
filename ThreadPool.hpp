@@ -10,13 +10,16 @@
  * https://github.com/Linsexy/arfang-engine
  *
  */
+#include <array>
+#include <vector>
+#include "Thread.hpp"
+
 namespace Af
 {
-    template <int nbOfThreads>
     class ThreadPool
     {
     public:
-        ThreadPool() = default;
+        ThreadPool(int);
         ~ThreadPool();
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
@@ -26,8 +29,11 @@ namespace Af
         template <typename Task>
         auto runAsyncTask(Task&& toRun)
         {
-
+            return 1;
         }
+
+    private:
+        std::vector<Thread> _threads;
     };
 }
 
