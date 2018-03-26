@@ -12,6 +12,9 @@
  */
 #include <array>
 #include <vector>
+#include <functional>
+#include <list>
+#include <future>
 #include "Thread.hpp"
 
 namespace Af
@@ -24,16 +27,43 @@ namespace Af
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
 
-
-
-        template <typename Task>
-        auto runAsyncTask(Task&& toRun)
+        /*class Task
         {
-            return 1;
+        public:
+            template <typename T>
+            Task()
+            {
+
+            }
+            operator()
+        };
+         */
+
+
+        template <typename Task, typename... Args>
+        auto runAsyncTask(Task&& toCall, Args... args)
+        {
+            std::promise<std::result_of<Task(Args...)>> promise;
+            auto task = [=]()
+            {
+                promise.set_value(toCall(std::forward<Args>(args)...));
+            };
+
+            //_tasks.emplace_back();
+            return promise.get_future();
         }
 
+        class Error : public std::runtime_error
+        {
+        public:
+            Error(const std::string& err) : std::runtime_error(err) {}
+        };
+
     private:
-        std::vector<Thread> _threads;
+        std::condition_variable  _cond;
+        std::mutex               _mut;
+        std::vector<Thread>      _threads;
+        std::list<std::function<void()>> _tasks;
     };
 }
 

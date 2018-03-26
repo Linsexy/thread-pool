@@ -7,19 +7,24 @@
 
 #include <thread>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 namespace Af
 {
     class Thread
     {
-        Thread();
+    public:
+        Thread(std::mutex&, std::condition_variable&);
         ~Thread();
-        Thread(Thread&&) = default;
+        Thread(Thread&&);
         Thread(const Thread&) = delete;
 
     private:
-        std::thread _thread;
-        std::atomic<bool> isReady; /* find a better name */
+        std::condition_variable& _cond;
+        std::mutex&              _mut;
+        std::atomic<bool>        _isReady;
+        std::thread              _thread;
     };
 }
 
