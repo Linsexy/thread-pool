@@ -24,7 +24,7 @@ namespace Af
     {
     public:
         ThreadPool(int);
-        ~ThreadPool();
+        ~ThreadPool() = default;
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
 
@@ -42,21 +42,25 @@ namespace Af
 
 
         template <typename Task, typename... Args>
-        auto runAsyncTask(Task&& toCall, Args... args)
+        auto runAsyncTask(Task&& toCall, Args&&... args)
         {
             std::promise<std::result_of<Task(Args...)>> promise;
-            auto task = [=]()
+            auto ret = promise.get_future();
+
+            auto task = [promise=std::move(promise),
+                    toCall = std::forward<Task>(toCall),
+                    &args...]()
             {
-                promise.set_value(toCall(std::forward<Args>(args)...));
+                //promise.set_value(toCall(std::forward<Args>(args)...));
             };
 
 
             std::unique_lock lk(_mut);
-            _tasks.push(task);
+            //_tasks.push(task);
             lk.unlock();
             _cond.notify_one();
 
-            return promise.get_future();
+            return ret;
         }
 
         class Error : public std::runtime_error
