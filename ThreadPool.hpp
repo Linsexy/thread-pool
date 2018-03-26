@@ -15,6 +15,7 @@
 #include <functional>
 #include <list>
 #include <future>
+#include <queue>
 #include "Thread.hpp"
 
 namespace Af
@@ -49,7 +50,12 @@ namespace Af
                 promise.set_value(toCall(std::forward<Args>(args)...));
             };
 
-            //_tasks.emplace_back();
+
+            std::unique_lock lk(_mut);
+            _tasks.push(task);
+            lk.unlock();
+            _cond.notify_one();
+
             return promise.get_future();
         }
 
@@ -63,7 +69,7 @@ namespace Af
         std::condition_variable  _cond;
         std::mutex               _mut;
         std::vector<Thread>      _threads;
-        std::list<std::function<void()>> _tasks;
+        std::queue<std::function<void()>> _tasks;
     };
 }
 

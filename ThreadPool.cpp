@@ -13,6 +13,6 @@ Af::ThreadPool::ThreadPool(int nbOfThreads)
     _threads.reserve(nbOfThreads);
     for (auto i = 0 ; i != nbOfThreads ; ++i)
     {
-        _threads.emplace_back(_mut, _cond);
+        _threads.emplace_back(_mut, _cond, _tasks);
     }
 }
