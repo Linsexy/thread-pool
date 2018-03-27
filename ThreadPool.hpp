@@ -64,7 +64,7 @@ namespace Af
         template <typename Func, typename... Args>
         struct Helper<void, Func, Args...>
         {
-            Helper(const std::promise<void>& promise,
+            Helper(std::promise<void>& promise,
                    Func&& func,
                    Args&&... args) : _f(std::forward<Func>(func)),
                                      _args(std::make_tuple(std::forward<Args>(args)...)) {}
@@ -82,14 +82,13 @@ namespace Af
         template <typename Task, typename... Args>
         auto runAsyncTask(Task&& toCall, Args&&... args)
         {
-            std::promise<std::result_of<Task(Args...)>> promise;
+            std::promise<typename std::result_of<Task(Args...)>::type > promise;
             auto ret = promise.get_future();
-
-            auto task = [promise=std::move(promise),
+            auto task = [prom=std::move(promise),
                     toCall = std::forward<Task>(toCall),
-                    &args...]() /* ça pue la merde, a modifier (args by ref) */
+                    &args...]() mutable /* ça pue la merde, a modifier (args by ref)*/
             {
-               Helper(promise, std::forward<Task>(toCall), std::forward<Args>(args)...)();
+               Helper(prom, std::forward<Task>(toCall), std::forward<Args>(args)...);
             };
 
 
