@@ -8,7 +8,7 @@
 
 Af::Thread::Thread(std::mutex& m,
                    std::condition_variable& cond,
-                   std::queue<std::function<void()>> t) : _jobFinished(false),
+                   std::queue<std::unique_ptr<ITask>>& t) : _jobFinished(false),
                                                           _mut(m),
                                                           _cond(cond),
                                                           _isReady(false),
@@ -30,7 +30,7 @@ Af::Thread::Thread(std::mutex& m,
                 auto task = std::move(_tasks.front());
                 _tasks.pop();
                 lk.unlock();
-                task();
+                (*task)();
             }
         }
     };
@@ -47,11 +47,13 @@ Af::Thread::Thread(Thread && t) : _mut(t._mut),
 
 bool Af::Thread::isReady() const noexcept { return _isReady.load();}
 
+void Af::Thread::jobFinished() noexcept { _jobFinished.store(true); }
+
 Af::Thread::~Thread()
 {
     if (_thread.joinable())
     {
         _jobFinished.store(true);
-        _thread.join();
+        _thread.join(); //TODO: detach ?
     }
 }

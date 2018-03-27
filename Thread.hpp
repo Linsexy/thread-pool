@@ -12,19 +12,76 @@
 #include <condition_variable>
 #include <functional>
 #include <queue>
+#include <future>
+#include <iostream>
 
 namespace Af
 {
     class Thread
     {
     public:
-        Thread(std::mutex&, std::condition_variable&, std::queue<std::function<void()>>);
+        class ITask
+        {
+        public:
+            virtual void operator()() = 0;
+        };
+
+        template <typename retType, typename Func, typename... Args>
+        class Task : public ITask
+        {
+        public:
+            Task(std::promise<retType>&& promise,
+                 Func&& func,
+                 Args&&... args) : _prom(promise),
+                                   _f(std::forward<Func>(func)),
+                                   _args(std::make_tuple(std::forward<Args>(args)...)) {}
+
+            Task(Task&&) = default;
+            Task(const Task&) = delete;
+
+            void operator()() override
+            {
+                std::cout << "In helper" << std::endl;
+                _prom.set_value(std::apply(_f, _args));
+            }
+
+        private:
+            std::promise<retType>& _prom;
+            std::decay_t<Func> _f;
+            std::tuple<std::decay_t<Args>...> _args;
+        };
+
+        template <typename Func, typename... Args>
+        class Task<void, Func, Args...> : public ITask
+        {
+        public:
+            Task(std::promise<void>&& promise,
+                 Func&& func,
+                 Args&&... args) : _f(std::forward<Func>(func)),
+                                   _args(std::make_tuple(std::forward<Args>(args)...)) {}
+
+            Task(Task&&) = default;
+            Task(const Task&) = delete;
+
+            void operator()() override
+            {
+                std::cout << "In helper" << std::endl;
+                std::apply(_f, _args);
+            }
+
+        private:
+            std::decay_t<Func> _f;
+            std::tuple<std::decay_t<Args>...> _args;
+        };
+
+        Thread(std::mutex&, std::condition_variable&, std::queue<std::unique_ptr<ITask>>&);
         ~Thread();
         Thread(Thread&&);
         Thread(const Thread&) = delete;
 
         bool isReady() const noexcept;
 
+        void jobFinished() noexcept ;
         /*
         template <typename Task>
         void giveNewTask(Task&& task)
@@ -40,7 +97,7 @@ namespace Af
         std::mutex&              _mut;
         std::atomic<bool>        _isReady;
         std::thread              _thread;
-        std::queue<std::function<void()>>& _tasks;
+        std::queue<std::unique_ptr<ITask>>& _tasks;
     };
 }
 

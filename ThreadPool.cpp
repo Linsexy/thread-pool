@@ -16,3 +16,12 @@ Af::ThreadPool::ThreadPool(int nbOfThreads)
         _threads.emplace_back(_mut, _cond, _tasks);
     }
 }
+
+Af::ThreadPool::~ThreadPool()
+{
+    for (auto& t : _threads)
+    {
+        t.jobFinished();
+    }
+    _cond.notify_all();
+}

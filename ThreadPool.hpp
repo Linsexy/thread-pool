@@ -25,76 +25,29 @@ namespace Af
     {
     public:
         ThreadPool(int);
-        ~ThreadPool() = default;
+        ~ThreadPool();
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
 
-        /*class Task
-        {
-        public:
-            template <typename T>
-            Task()
-            {
-
-            }
-            operator()
-        };
-         */
-
-        template <typename retType, typename Func, typename... Args>
-        struct Helper
-        {
-            Helper(std::promise<retType>& promise,
-                   Func&& func,
-                   Args&&... args) : _prom(promise),
-                                     _f(std::forward<Func>(func)),
-                                     _args(std::make_tuple(std::forward<Args>(args)...)) {}
-            void operator()()
-            {
-                std::cout << "In helper" << std::endl;
-                _prom.set_value(std::apply(_f, _args));
-            }
-
-        private:
-            std::promise<retType>& _prom;
-            std::decay_t<Func> _f;
-            std::tuple<std::decay_t<Args>...> _args;
-        };
-
         template <typename Func, typename... Args>
-        struct Helper<void, Func, Args...>
+        auto runAsyncTask(Func&& toCall, Args&&... args)
         {
-            Helper(std::promise<void>& promise,
-                   Func&& func,
-                   Args&&... args) : _f(std::forward<Func>(func)),
-                                     _args(std::make_tuple(std::forward<Args>(args)...)) {}
-            void operator()()
-            {
-                std::cout << "In helper" << std::endl;
-                std::apply(_f, _args);
-            }
+            using RetType = typename std::result_of<Func(Args...)>::type;
 
-        private:
-            std::decay_t<Func> _f;
-            std::tuple<std::decay_t<Args>...> _args;
-        };
-
-        template <typename Task, typename... Args>
-        auto runAsyncTask(Task&& toCall, Args&&... args)
-        {
-            std::promise<typename std::result_of<Task(Args...)>::type > promise;
+            std::cout << "Hi there" << std::endl;
+            std::promise<RetType> promise;
             auto ret = promise.get_future();
-            auto task = [prom=std::move(promise),
-                    toCall = std::forward<Task>(toCall),
-                    &args...]() mutable /* ça pue la merde, a modifier (args by ref)*/
-            {
-               Helper(prom, std::forward<Task>(toCall), std::forward<Args>(args)...);
-            };
 
+            std::cout << "threadpool acquiring mutex" << std::endl;
+
+            auto task = std::make_unique<Thread::Task<RetType, Func, Args...>>(std::move(promise),
+                                                                               std::forward<Func>(toCall), std::forward<Args>(args)...);
 
             std::unique_lock lk(_mut);
-            //_tasks.push(task);
+            _tasks.emplace(std::move(task));
+            std::cout << "unlocking it" << std::endl;
             lk.unlock();
+            std::cout << "notify a thread" << std::endl;
             _cond.notify_one();
 
             return ret;
@@ -110,7 +63,7 @@ namespace Af
         std::condition_variable  _cond;
         std::mutex               _mut;
         std::vector<Thread>      _threads;
-        std::queue<std::function<void()>> _tasks;
+        std::queue<std::unique_ptr<Thread::ITask>> _tasks;
     };
 }
 
