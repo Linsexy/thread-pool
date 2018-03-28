@@ -24,7 +24,8 @@ namespace Af
     class ThreadPool
     {
     public:
-        ThreadPool(int);
+
+        ThreadPool(int, Thread::DestroyBehavior behavior=Thread::DestroyBehavior::DETACH);
         ~ThreadPool();
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
@@ -38,17 +39,18 @@ namespace Af
             std::promise<RetType> promise;
             auto ret = promise.get_future();
 
-            std::cout << "threadpool acquiring mutex" << std::endl;
-
             auto task = std::make_unique<Thread::Task<RetType, Func, Args...>>(std::move(promise),
-                                                                               std::forward<Func>(toCall), std::forward<Args>(args)...);
+                                                                               std::forward<Func>(toCall),
+                                                                               std::forward<Args>(args)...);
 
-            std::unique_lock lk(_mut);
+            std::cout << "threadpool acquiring mutex" << std::endl;
+            std::unique_lock lk(*_mut);
             _tasks.emplace(std::move(task));
             std::cout << "unlocking it" << std::endl;
             lk.unlock();
             std::cout << "notify a thread" << std::endl;
-            _cond.notify_one();
+            _cond->notify_one();
+            std::cout << "returning" << std::endl;
 
             return ret;
         }
@@ -60,10 +62,11 @@ namespace Af
         };
 
     private:
-        std::condition_variable  _cond;
-        std::mutex               _mut;
-        std::vector<Thread>      _threads;
+        Thread::DestroyBehavior  _behavior;
+        std::shared_ptr<std::condition_variable>  _cond;
+        std::shared_ptr<std::mutex>               _mut;
         std::queue<std::unique_ptr<Thread::ITask>> _tasks;
+        std::vector<Thread>      _threads;
     };
 }
 
