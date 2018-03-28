@@ -81,7 +81,9 @@ namespace Af
         Thread(Thread&&);
         Thread(const Thread&) = delete;
 
-        bool isReady() const noexcept;
+        std::thread& get() noexcept ;
+
+        bool isWorking() const noexcept;
 
         void jobFinished() noexcept ;
 
@@ -90,7 +92,7 @@ namespace Af
         std::atomic<bool>                       _jobFinished;
         std::weak_ptr<std::condition_variable>  _cond;
         std::weak_ptr<std::mutex>               _mut;
-        std::atomic<bool>                       _isReady;
+        std::atomic<bool>                       _isWorking;
         std::thread                             _thread;
         std::queue<std::unique_ptr<ITask>>&     _tasks;
     };
