@@ -13,12 +13,11 @@ Af::Thread::Thread(DestroyBehavior behavior,
                                                             _jobFinished(false),
                                                             _mut(m),
                                                             _cond(cond),
-                                                            _isReady(false),
+                                                            _isWorking(false),
                                                             _tasks(t)
 {
     auto func = [this]()
     {
-        _isReady.store(true);
         while (!_jobFinished)
         {
             if (_mut.expired())
@@ -42,6 +41,7 @@ Af::Thread::Thread(DestroyBehavior behavior,
                 auto task = std::move(_tasks.front());
                 _tasks.pop();
                 lk.unlock();
+                _isWorking.store(true);
                 (*task)();
             }
         }
@@ -54,12 +54,14 @@ Af::Thread::Thread(Thread && t) : _mut(t._mut),
                                   _thread(std::move(t._thread)),
                                   _tasks(t._tasks)
 {
-    _isReady.store(t._isReady.load());
+    _isWorking.store(t._isWorking.load());
 }
 
-bool Af::Thread::isReady() const noexcept { return _isReady.load();}
+bool Af::Thread::isWorking() const noexcept { return _isWorking.load();}
 
 void Af::Thread::jobFinished() noexcept { _jobFinished.store(true); }
+
+std::thread& Af::Thread::get() { return _thread; }
 
 Af::Thread::~Thread()
 {

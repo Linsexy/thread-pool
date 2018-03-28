@@ -29,7 +29,7 @@ namespace Af
         ~ThreadPool();
         ThreadPool(ThreadPool&&) = default;
         ThreadPool(ThreadPool const&) = delete;
-
+        
         template <typename Func, typename... Args>
         auto runAsyncTask(Func&& toCall, Args&&... args)
         {
