@@ -4,7 +4,10 @@
 
 #include "ThreadPool.hpp"
 
-Af::ThreadPool::ThreadPool(int nbOfThreads)
+Af::ThreadPool::ThreadPool(int nbOfThreads,
+                           Thread::DestroyBehavior behavior) : _behavior(behavior),
+                                                               _cond(std::make_shared<std::condition_variable>()),
+                                                               _mut(std::make_shared<std::mutex>())
 {
     if (nbOfThreads < 1)
     {
@@ -13,7 +16,7 @@ Af::ThreadPool::ThreadPool(int nbOfThreads)
     _threads.reserve(nbOfThreads);
     for (auto i = 0 ; i != nbOfThreads ; ++i)
     {
-        _threads.emplace_back(_mut, _cond, _tasks);
+        _threads.emplace_back(behavior, _mut, _cond, _tasks);
     }
 }
 
@@ -23,5 +26,5 @@ Af::ThreadPool::~ThreadPool()
     {
         t.jobFinished();
     }
-    _cond.notify_all();
+    _cond->notify_all();
 }

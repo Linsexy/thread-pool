@@ -74,7 +74,9 @@ namespace Af
             std::tuple<std::decay_t<Args>...> _args;
         };
 
-        Thread(std::mutex&, std::condition_variable&, std::queue<std::unique_ptr<ITask>>&);
+        enum class DestroyBehavior {DETACH, JOIN};
+
+        Thread(DestroyBehavior, std::shared_ptr<std::mutex>&, std::shared_ptr<std::condition_variable>&, std::queue<std::unique_ptr<ITask>>&);
         ~Thread();
         Thread(Thread&&);
         Thread(const Thread&) = delete;
@@ -82,22 +84,15 @@ namespace Af
         bool isReady() const noexcept;
 
         void jobFinished() noexcept ;
-        /*
-        template <typename Task>
-        void giveNewTask(Task&& task)
-        {
-            _tasks.push(std::forward<Task>(task));
-            _isReady.store(false);
-        }
-         */
 
     private:
-        std::atomic<bool>        _jobFinished;
-        std::condition_variable& _cond;
-        std::mutex&              _mut;
-        std::atomic<bool>        _isReady;
-        std::thread              _thread;
-        std::queue<std::unique_ptr<ITask>>& _tasks;
+        DestroyBehavior                         _behavior;
+        std::atomic<bool>                       _jobFinished;
+        std::weak_ptr<std::condition_variable>  _cond;
+        std::weak_ptr<std::mutex>               _mut;
+        std::atomic<bool>                       _isReady;
+        std::thread                             _thread;
+        std::queue<std::unique_ptr<ITask>>&     _tasks;
     };
 }
 
