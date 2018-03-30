@@ -26,13 +26,13 @@ namespace Af
             virtual void operator()() = 0;
         };
 
-        template <typename retType, typename Func, typename... Args>
+        template <typename RetType, typename Func, typename... Args>
         class Task : public ITask
         {
         public:
-            Task(std::promise<retType>&& promise,
+            Task(std::promise<RetType>&& promise,
                  Func&& func,
-                 Args&&... args) : _prom(promise),
+                 Args&&... args) : _prom(std::move(promise)),
                                    _f(std::forward<Func>(func)),
                                    _args(std::make_tuple(std::forward<Args>(args)...)) {}
 
@@ -42,11 +42,18 @@ namespace Af
             void operator()() override
             {
                 std::cout << "In helper" << std::endl;
-                _prom.set_value(std::apply(_f, _args));
+                try
+                {
+                    _prom.set_value(std::apply(_f, _args));
+                }
+                catch (...)
+                {
+                    _prom.set_exception(std::current_exception());
+                }
             }
 
         private:
-            std::promise<retType>& _prom;
+            std::promise<RetType> _prom;
             std::decay_t<Func> _f;
             std::tuple<std::decay_t<Args>...> _args;
         };
@@ -57,7 +64,8 @@ namespace Af
         public:
             Task(std::promise<void>&& promise,
                  Func&& func,
-                 Args&&... args) : _f(std::forward<Func>(func)),
+                 Args&&... args) : _prom(std::move(promise)),
+                                   _f(std::forward<Func>(func)),
                                    _args(std::make_tuple(std::forward<Args>(args)...)) {}
 
             Task(Task&&) = default;
@@ -65,11 +73,19 @@ namespace Af
 
             void operator()() override
             {
-                std::cout << "In helper" << std::endl;
-                std::apply(_f, _args);
+                try
+                {
+                    std::cout << "In helper" << std::endl;
+                    std::apply(_f, _args);
+                }
+                catch (...)
+                {
+                    _prom.set_exception(std::current_exception());
+                }
             }
 
         private:
+            std::promise<void> _prom;
             std::decay_t<Func> _f;
             std::tuple<std::decay_t<Args>...> _args;
         };

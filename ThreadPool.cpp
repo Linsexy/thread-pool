@@ -22,9 +22,17 @@ Af::ThreadPool::ThreadPool(int nbOfThreads,
 
 Af::ThreadPool::~ThreadPool()
 {
+    std::lock_guard guard(*_mut);
+    std::cout << "destruction of threadpool" << std::endl;
+
     for (auto& t : _threads)
     {
         t.jobFinished();
     }
     _cond->notify_all();
 }
+
+/* feature may be implemented in a new object
+void Af::ThreadPool::finishTasks()
+{}
+ */

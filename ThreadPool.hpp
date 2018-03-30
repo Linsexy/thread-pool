@@ -35,7 +35,6 @@ namespace Af
         {
             using RetType = typename std::result_of<Func(Args...)>::type;
 
-            std::cout << "Hi there" << std::endl;
             std::promise<RetType> promise;
             auto ret = promise.get_future();
 
@@ -43,17 +42,17 @@ namespace Af
                                                                                std::forward<Func>(toCall),
                                                                                std::forward<Args>(args)...);
 
-            std::cout << "threadpool acquiring mutex" << std::endl;
+           // std::cout << "threadpool acquiring mutex" << std::endl;
             std::unique_lock lk(*_mut);
             _tasks.emplace(std::move(task));
-            std::cout << "unlocking it" << std::endl;
             lk.unlock();
-            std::cout << "notify a thread" << std::endl;
-            _cond->notify_one();
-            std::cout << "returning" << std::endl;
 
-            return ret;
+            _cond->notify_one();
+
+            return std::move(ret);
         }
+
+        void finishTasks() noexcept;
 
         class Error : public std::runtime_error
         {
